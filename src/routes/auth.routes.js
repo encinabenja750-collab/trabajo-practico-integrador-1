@@ -6,11 +6,12 @@ import {
   obtenerPerfil,
   actualizarPerfil,
 } from "../controllers/auth.controllers.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 export const authRoutes = Router();
 
 authRoutes.post("/register", register);
 authRoutes.post("/login", login);
 authRoutes.post("/logout", logout);
-authRoutes.get("/profile", obtenerPerfil);
-authRoutes.put("/profile", actualizarPerfil);
+authRoutes.get("/profile", authMiddleware, obtenerPerfil);
+authRoutes.put("/profile", authMiddleware, actualizarPerfil);
