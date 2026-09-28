@@ -3,7 +3,7 @@ import { ProfileModel } from "../models/profile.model.js";
 import { hashPassword } from "../helpers/bcrypt.helper.js";
 import { comparePassword } from "../helpers/bcrypt.helper.js";
 import { generateToken } from "../helpers/jwt.helper.js";
-import { where } from "sequelize";
+import { matchedData } from "express-validator";
 
 export const register = async (req, res) => {
   const {
@@ -112,4 +112,49 @@ export const logout = (req, res) => {
   return res.status(200).json({
     message: "Logout exitoso. Sesión cerrada correctamente",
   });
+};
+
+export const obtenerPerfil = async (req, res) => {
+  try {
+    const usuario = await UserModel.findByPk(req.user.id, {
+      include: {
+        model: ProfileModel,
+        as: "profile",
+      },
+      attributes: { exclude: ["password"] },
+    });
+    if (!usuario) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+    return res.status(200).json({ data: usuario });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Error al obtener el perfil", error: error.message });
+  }
+};
+
+export const actualizarPerfil = async (req, res) => {
+  try {
+    const perfil = await ProfileModel.findOne({
+      where: { user_id: req.user.id },
+    });
+    if (!perfil) {
+      return res.status(404).json({ message: "Perfil no encontrado." });
+    }
+    const datosLimpios = matchedData(req);
+
+    await perfil.update(datosLimpios);
+
+    return res.status(200).json({
+      message: "Perfil actualizado con éxito.",
+      data: perfil,
+    });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Error al actualizar el perfil", error: error.message });
+  }
 };
