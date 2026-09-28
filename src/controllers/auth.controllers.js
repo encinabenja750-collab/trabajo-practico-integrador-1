@@ -1,6 +1,9 @@
 import { UserModel } from "../models/user.model.js";
 import { ProfileModel } from "../models/profile.model.js";
 import { hashPassword } from "../helpers/bcrypt.helper.js";
+import { comparePassword } from "../helpers/bcrypt.helper.js";
+import { generateToken } from "../helpers/jwt.helper.js";
+import { where } from "sequelize";
 
 export const register = async (req, res) => {
   const {
@@ -52,4 +55,61 @@ export const register = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+export const login = async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const usuario = await UserModel.findOne({
+      where: { username },
+      include: {
+        model: ProfileModel,
+        as: "profile",
+      },
+    });
+    if (!usuario) {
+      return res.status(401).json({ message: "Credenciales inválidas" });
+    }
+    const passwordValido = await comparePassword(password, usuario.password);
+
+    if (!passwordValido) {
+      return res.status(401).json({ message: "Credenciales inválidas" });
+    }
+    const token = generateToken({
+      id: usuario.id,
+      username: usuario.username,
+      role: usuario.role,
+      firs_name: usuario.profile?.firs_name || "",
+      last_name: usuario.profile?.last_name || "",
+    });
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60,
+      sameSite: "strict",
+      secure: false,
+    });
+    return res.status(200).json({
+      message: "Login exitoso. Sesión iniciada",
+      user: {
+        id: usuario.id,
+        username: usuario.username,
+        role: usuario.role,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Ocurrió un error inesperado al iniciar sesión",
+      error: error.message,
+    });
+  }
+};
+
+export const logout = (req, res) => {
+  res.clearCookie("token");
+
+  return res.status(200).json({
+    message: "Logout exitoso. Sesión cerrada correctamente",
+  });
 };
